@@ -7,14 +7,15 @@ import org.opencv.imgproc.Imgproc;
 
 import com.ciandt.sample.detection.video.background.utils.VideoProcessor;
 
-public class AbsDifferenceBackground implements VideoProcessor {
-
+public class ImageGrayDifferenceBackground implements VideoProcessor {
+	
 	private final static int SENSITIVITY_VALUE = 20;
 	private final static int BLUR_SIZE = 15;
 
+	@Override
 	public Mat process(Mat inputImage) {
-		Mat foregroundImage = new Mat();
-		return foregroundImage;
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
@@ -27,17 +28,20 @@ public class AbsDifferenceBackground implements VideoProcessor {
 		Imgproc.cvtColor(frame1, grayImage1,Imgproc.COLOR_BGR2GRAY);
 		Imgproc.cvtColor(frame2, grayImage2,Imgproc.COLOR_BGR2GRAY);
 		
+		Imgproc.GaussianBlur(grayImage1, grayImage1, new Size(BLUR_SIZE,BLUR_SIZE),0 ,0);
+		Imgproc.GaussianBlur(grayImage2, grayImage2, new Size(BLUR_SIZE,BLUR_SIZE),0 ,0);
+		
 		Core.absdiff(grayImage1, grayImage2, differenceImage);
 		
 		
-		Imgproc.threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, Imgproc.THRESH_BINARY);
+		//Imgproc.threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, Imgproc.THRESH_BINARY);
 		
-		Imgproc.blur(thresholdImage, thresholdImage, new Size(BLUR_SIZE,BLUR_SIZE));
+		//Imgproc.blur(thresholdImage, thresholdImage, new Size(BLUR_SIZE,BLUR_SIZE));
 		
-		Imgproc.threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, Imgproc.THRESH_OTSU);
+		//Imgproc.threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, Imgproc.THRESH_OTSU);
 		
-		return thresholdImage;
+		return differenceImage;
 	}
-	
-	
+
+
 }

@@ -37,9 +37,13 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.video.BackgroundSubtractorKNN;
 import org.opencv.videoio.VideoCapture;
 
 import com.ciandt.sample.detection.utils.ImageProcessor;
+import com.ciandt.sample.detection.video.background.backgroundprocessors.AbsDifferenceBackground;
+import com.ciandt.sample.detection.video.background.backgroundprocessors.CustomTransformationBackground;
+import com.ciandt.sample.detection.video.background.backgroundprocessors.ImageGrayDifferenceBackground;
 import com.ciandt.sample.detection.video.background.backgroundprocessors.MixtureOfGaussianBackground;
 import com.ciandt.sample.detection.video.background.utils.VideoProcessor;
 
@@ -56,6 +60,7 @@ public class VagaoApp {
 	private String windowName;
 	private Mat currentImage = new Mat();
 	private Mat foregroundImage = new Mat();
+	private Mat backgroundImage = new Mat();
 	private Mat binaryImage = new Mat();
 	
 	JFrame frame;
@@ -64,8 +69,8 @@ public class VagaoApp {
 	
 	private String fillFlag = onFillString;
 	private String enclosingType = boundingBoxString;
-	private int imageThreshold = 125;
-	private int areaThreshold = 500;
+	private int limiar = 15;
+	private int areaThreshold = 13000;
 
 	public VagaoApp(String windowName) {
 		super();
@@ -79,60 +84,13 @@ public class VagaoApp {
 		runMainLoop();
 	}
 	
-	private void runMainLoop(){
 	
-		VideoProcessor videoProcessor;
-		VideoCapture capture = new VideoCapture(0);
-		
-		if( capture.isOpened()){
-			videoProcessor = new MixtureOfGaussianBackground();		
-			capture.read(currentImage);  
-			
-			binaryImage.create(new Size(currentImage.cols(), currentImage.rows()), CvType.CV_8UC1);
-			binaryImage.setTo(new Scalar(0));
-			
-			while (true){  
-				capture.read(currentImage);  
-				if( !currentImage.empty() ){
-					
-					
-					
-					foregroundImage = videoProcessor.process(currentImage);
-					
-					Imgproc.cvtColor(currentImage, binaryImage,Imgproc.COLOR_BGR2GRAY);
-					Imgproc.threshold(binaryImage, binaryImage, imageThreshold, 255.0, Imgproc.THRESH_BINARY_INV);
-		
-					drawContours();
-					
-					// update
-					Image tempCurrent = imageProcessor.toBufferedImage(currentImage);
-					Image tempForeground = imageProcessor.toBufferedImage(foregroundImage);
-					Image tempBinary = imageProcessor.toBufferedImage(binaryImage);
-					currentImageView.setIcon(new ImageIcon(tempCurrent));
-					foregroundImageView.setIcon(new ImageIcon(tempForeground));
-					binaryImageView.setIcon(new ImageIcon(tempBinary));
-					
-					frame.pack();
-					
-					try {
-						Thread.sleep(70);
-					} catch (InterruptedException e) {
-					}
-				}  
-			}  
-		}
-		else{
-			System.out.println("Couldn't open video file.");
-		}
-		
-	}
-
 	private void initGUI() {
 		frame = createJFrame(windowName);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  
 		
 		frame.setSize(600,480);  
-		frame.pack();
+	//	frame.pack();
 		//frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 
@@ -176,10 +134,64 @@ public class VagaoApp {
 		
 		frame.add(resetButton,c);
 	}
+	
+	private void runMainLoop(){
+		
+		VideoProcessor videoProcessor;
+		VideoCapture capture = new VideoCapture("pessoas.avi");
+		Mat frame2 = new Mat();
+		
+		if( capture.isOpened()){
+			videoProcessor = new AbsDifferenceBackground();		
+			capture.read(currentImage);  
+			
+			binaryImage.create(new Size(currentImage.cols(), currentImage.rows()), CvType.CV_8UC1);
+			binaryImage.setTo(new Scalar(0));
+			
+			while (true){  
+				capture.read(currentImage);  
+				if( !currentImage.empty() ){
+					capture.read(frame2);  
+					
+					//foregroundImage = videoProcessor.process(currentImage);
+					foregroundImage = videoProcessor.process(currentImage, frame2);
+					
+					//Imgproc.cvtColor(foregroundImage, binaryImage,Imgproc.COLOR_BGR2GRAY);
+					//Imgproc.threshold(foregroundImage, binaryImage, imageThreshold, 255.0, Imgproc.THRESH_BINARY_INV);
+					
+					Mat structuringElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(limiar, limiar));
+				    Imgproc.morphologyEx(foregroundImage, binaryImage, Imgproc.MORPH_OPEN, structuringElement);
+				    Imgproc.morphologyEx(binaryImage, binaryImage, Imgproc.MORPH_CLOSE, structuringElement);
+					drawContours();
+					
+					// update
+					updateView();
+					
+					frame.pack();
+					
+					try {
+						Thread.sleep(300);
+					} catch (InterruptedException e) {
+					}
+				}  
+			}  
+		}
+		else{
+			System.out.println("Couldn't open video file.");
+		}
+		
+	}
+
 
 	protected void drawContours() {
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-		Mat contourMat = binaryImage.clone();
+		
+		final Mat contourMat = new Mat(binaryImage.rows(), binaryImage.cols(), binaryImage.type());
+		binaryImage.copyTo(contourMat);
+		
+		
+		//Mat contourMat = binaryImage.clone();
+		
 		
 		int thickness = (fillFlag.equals(onFillString))?-1:2;
 		
@@ -191,7 +203,7 @@ public class VagaoApp {
 			
 			if(currentArea > areaThreshold){
 				System.out.println("Contour points: " +contours.get(i).size().height);
-				Imgproc.drawContours(currentImage, contours, i, new Scalar(0,255,0), thickness);
+				//Imgproc.drawContours(currentImage, contours, i, new Scalar(0,255,0), thickness);
 				System.out.println("Area: "+currentArea);
 				
 				if(boundingBoxString.equals(enclosingType)){
@@ -206,15 +218,34 @@ public class VagaoApp {
 				
 			}
 			else{
-				Imgproc.drawContours(currentImage, contours, i, new Scalar(0,0,255), thickness);	
+			//	Imgproc.drawContours(currentImage, contours, i, new Scalar(0,0,255), thickness);	
 			}
 			
 		}
 	}
+	
+	private void updateView(){
+		Image tempCurrent = imageProcessor.toBufferedImage(resizeImage(currentImage));
+		Image tempForeground = imageProcessor.toBufferedImage(resizeImage(foregroundImage));
+		Image tempBinary = imageProcessor.toBufferedImage(resizeImage(binaryImage));
+		currentImageView.setIcon(new ImageIcon(tempCurrent));
+		foregroundImageView.setIcon(new ImageIcon(tempForeground));
+		binaryImageView.setIcon(new ImageIcon(tempBinary));
+		
+		frame.pack();
+	}
+	
+	private Mat resizeImage(Mat src){
+		Mat resizeimage = new Mat();
+		Size sz = new Size(600,480);
+		Imgproc.resize( src, resizeimage, sz );
+		
+		return resizeimage; 
+	}
 
 	private void drawBoundingBox(MatOfPoint currentContour) {
 		Rect rectangle = Imgproc.boundingRect(currentContour);
-		Imgproc.rectangle(currentImage, rectangle.tl(), rectangle.br(), new Scalar(255,0,0),1);
+		Imgproc.rectangle(currentImage, rectangle.tl(), rectangle.br(), new Scalar(255,0,0),5);
 
 	}
 
@@ -256,7 +287,7 @@ public class VagaoApp {
 
 		int minimum = 0;
 		int maximum = 255;
-		int initial =imageThreshold;
+		int initial =limiar;
 
 		JSlider thresholdSlider = new JSlider(JSlider.HORIZONTAL,
 				minimum, maximum, initial);
@@ -268,7 +299,7 @@ public class VagaoApp {
 		thresholdSlider.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
 				JSlider source = (JSlider)e.getSource();
-				imageThreshold = (int)source.getValue();
+				limiar = (int)source.getValue();
 				processOperation();	
 			}
 		});
@@ -441,8 +472,10 @@ private void setupUpperSlider(JFrame frame) {
 
 	private void setupImage(JFrame frame) {
 		currentImageView = new JLabel();
+		
 		foregroundImageView = new JLabel();
 		binaryImageView = new JLabel();
+
 		
 
 		GridBagConstraints c = new GridBagConstraints();

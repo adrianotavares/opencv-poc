@@ -19,6 +19,7 @@ public class RunningAverageBackground implements VideoProcessor {
 	int threshold = 60;//30;
 	
 	
+	
 	public RunningAverageBackground() {
 	}
 	
@@ -55,5 +56,10 @@ public class RunningAverageBackground implements VideoProcessor {
 		Core.subtract(white, foregroundThresh,  result);
 		return result;
 	}
+	
+	public Mat process(Mat frame1, Mat frame2) {
+		return null;
+	}
+
 
 }

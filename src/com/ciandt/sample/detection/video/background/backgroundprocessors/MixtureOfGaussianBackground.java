@@ -13,6 +13,7 @@ public class MixtureOfGaussianBackground implements VideoProcessor {
 	private BackgroundSubtractorMOG2 mog =  org.opencv.video.Video.createBackgroundSubtractorMOG2();
 	private Mat foreground = new Mat();
 	private double learningRate = 0.01;
+	
 
 	public Mat process(Mat inputImage) {
 		
@@ -20,5 +21,11 @@ public class MixtureOfGaussianBackground implements VideoProcessor {
 		
 		return foreground;
 	}
+	
+	public Mat process(Mat frame1, Mat frame2) {
+		return null;
+	}
+	
+
 
 }

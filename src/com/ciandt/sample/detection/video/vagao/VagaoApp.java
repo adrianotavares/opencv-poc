@@ -46,6 +46,7 @@ import com.ciandt.sample.detection.video.background.backgroundprocessors.CustomT
 import com.ciandt.sample.detection.video.background.backgroundprocessors.ImageGrayDifferenceBackground;
 import com.ciandt.sample.detection.video.background.backgroundprocessors.MixtureOfGaussianBackground;
 import com.ciandt.sample.detection.video.background.utils.VideoProcessor;
+import com.ciandt.sample.detection.video.visionapi.VisionApi;
 
 public class VagaoApp {
 
@@ -58,10 +59,12 @@ public class VagaoApp {
 	private JLabel foregroundImageView;
 	private JLabel binaryImageView;
 	private String windowName;
+	private Mat resizedImage = new Mat();
 	private Mat currentImage = new Mat();
 	private Mat foregroundImage = new Mat();
 	private Mat backgroundImage = new Mat();
 	private Mat binaryImage = new Mat();
+	private Mat capturedImage = new Mat();
 	
 	JFrame frame;
 
@@ -78,7 +81,7 @@ public class VagaoApp {
 		
 	}
 
-	public void init() {
+	public void init() throws Exception {
 		setSystemLookAndFeel();
 		initGUI();
 		runMainLoop();
@@ -135,19 +138,22 @@ public class VagaoApp {
 		frame.add(resetButton,c);
 	}
 	
-	private void runMainLoop(){
+	private void runMainLoop() throws Exception{
 		
 		VideoProcessor videoProcessor;
-		VideoCapture capture = new VideoCapture("pessoas.avi");
+		VideoCapture capture = new VideoCapture("tremcut.avi");
 		Mat frame2 = new Mat();
+		int framecount = 1;
 		
 		if( capture.isOpened()){
-			videoProcessor = new AbsDifferenceBackground();		
+			videoProcessor = new ImageGrayDifferenceBackground();		
 			capture.read(currentImage);  
 			
 			binaryImage.create(new Size(currentImage.cols(), currentImage.rows()), CvType.CV_8UC1);
 			binaryImage.setTo(new Scalar(0));
+			String text = "";
 			
+			capture.read(capturedImage);
 			while (true){  
 				capture.read(currentImage);  
 				if( !currentImage.empty() ){
@@ -162,15 +168,37 @@ public class VagaoApp {
 					Mat structuringElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(limiar, limiar));
 				    Imgproc.morphologyEx(foregroundImage, binaryImage, Imgproc.MORPH_OPEN, structuringElement);
 				    Imgproc.morphologyEx(binaryImage, binaryImage, Imgproc.MORPH_CLOSE, structuringElement);
+					
+					
+					
+					if (framecount % 20 ==0){
+						capturedImage = currentImage.clone();
+					//	Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
+					//	binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
+						
+						VisionApi visionApi = new VisionApi();
+
+						text = visionApi.sendImage(resizeImage(capturedImage));
+						System.out.println("Text_Detect: " + text);
+						Imgproc.putText(capturedImage, text , new Point(10,680),Core.FONT_HERSHEY_COMPLEX, 3, new Scalar(0,255,255),3);
+						if (visionApi.getRectangle() != null)
+							Imgproc.rectangle(capturedImage, visionApi.getRectangle().tl(), visionApi.getRectangle().br(), new Scalar(255,0,0),5);
+						Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
+						binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
+					}
+					
 					drawContours();
 					
 					// update
 					updateView();
 					
+					 
+					
 					frame.pack();
+					framecount ++;
 					
 					try {
-						Thread.sleep(300);
+						Thread.sleep(1);
 					} catch (InterruptedException e) {
 					}
 				}  
@@ -181,6 +209,8 @@ public class VagaoApp {
 		}
 		
 	}
+	
+	
 
 
 	protected void drawContours() {
@@ -227,25 +257,27 @@ public class VagaoApp {
 	private void updateView(){
 		Image tempCurrent = imageProcessor.toBufferedImage(resizeImage(currentImage));
 		Image tempForeground = imageProcessor.toBufferedImage(resizeImage(foregroundImage));
-		Image tempBinary = imageProcessor.toBufferedImage(resizeImage(binaryImage));
+//		Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
 		currentImageView.setIcon(new ImageIcon(tempCurrent));
 		foregroundImageView.setIcon(new ImageIcon(tempForeground));
-		binaryImageView.setIcon(new ImageIcon(tempBinary));
+///		binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
 		
 		frame.pack();
 	}
 	
 	private Mat resizeImage(Mat src){
-		Mat resizeimage = new Mat();
+		resizedImage = new Mat();
 		Size sz = new Size(600,480);
-		Imgproc.resize( src, resizeimage, sz );
+		Imgproc.resize( src, resizedImage, sz );
 		
-		return resizeimage; 
+		return resizedImage; 
 	}
 
 	private void drawBoundingBox(MatOfPoint currentContour) {
+		
 		Rect rectangle = Imgproc.boundingRect(currentContour);
 		Imgproc.rectangle(currentImage, rectangle.tl(), rectangle.br(), new Scalar(255,0,0),5);
+		
 
 	}
 

@@ -65,8 +65,8 @@ public class BackgoundDiffApp
 		Image tempImage;  
 		
 		VideoProcessor videoProcessor;
-		//VideoCapture capture = new VideoCapture("carros.mp4");
-		VideoCapture capture = new VideoCapture(0);
+		VideoCapture capture = new VideoCapture("camera.avi");
+	//	VideoCapture capture = new VideoCapture(0);
 		
 		if( capture.isOpened()){
 			

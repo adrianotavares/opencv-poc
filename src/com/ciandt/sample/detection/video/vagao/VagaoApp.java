@@ -1,6 +1,8 @@
 package com.ciandt.sample.detection.video.vagao;
 
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -9,7 +11,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -18,7 +22,9 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
 import javax.swing.JSlider;
+import javax.swing.JTextArea;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
@@ -35,20 +41,16 @@ import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.video.BackgroundSubtractorKNN;
 import org.opencv.videoio.VideoCapture;
 
 import com.ciandt.sample.detection.utils.ImageProcessor;
-import com.ciandt.sample.detection.video.background.backgroundprocessors.AbsDifferenceBackground;
-import com.ciandt.sample.detection.video.background.backgroundprocessors.CustomTransformationBackground;
-import com.ciandt.sample.detection.video.background.backgroundprocessors.ImageGrayDifferenceBackground;
-import com.ciandt.sample.detection.video.background.backgroundprocessors.MixtureOfGaussianBackground;
-import com.ciandt.sample.detection.video.background.utils.VideoProcessor;
 import com.ciandt.sample.detection.video.visionapi.VisionApi;
 
-public class VagaoApp {
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class VagaoApp implements CallBack {
 
 	private static final String onFillString = "On";
 	private static final String offFillString = "Off";
@@ -59,12 +61,14 @@ public class VagaoApp {
 	private JLabel foregroundImageView;
 	private JLabel binaryImageView;
 	private String windowName;
-	private Mat resizedImage = new Mat();
 	private Mat currentImage = new Mat();
 	private Mat foregroundImage = new Mat();
 	private Mat backgroundImage = new Mat();
 	private Mat binaryImage = new Mat();
 	private Mat capturedImage = new Mat();
+	private JTextArea textarea = new JTextArea(23,10);
+	private List<String> list = new LinkedList();
+	
 	
 	JFrame frame;
 
@@ -103,13 +107,13 @@ public class VagaoApp {
 		JFrame frame = new JFrame(windowName);
 		frame.setLayout(new GridBagLayout());
 
-		setupFillRadio(frame);
-		setupShapeRadio(frame);
+		//setupFillRadio(frame);
+		//setupShapeRadio(frame);
 		
-		setupLowerSlider(frame);
-		setupUpperSlider(frame);
+		//setupLowerSlider(frame);
+		//setupUpperSlider(frame);
 		
-		setupResetButton(frame);
+		//setupResetButton(frame);
 		setupImage(frame);
 
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -139,66 +143,24 @@ public class VagaoApp {
 	}
 	
 	private void runMainLoop() throws Exception{
-		
-		VideoProcessor videoProcessor;
+		//VideoCapture capture = new VideoCapture("ferromodelismo.wmv");
 		VideoCapture capture = new VideoCapture("tremcut.avi");
-		Mat frame2 = new Mat();
 		int framecount = 1;
 		
 		if( capture.isOpened()){
-			videoProcessor = new ImageGrayDifferenceBackground();		
-			capture.read(currentImage);  
-			
-			binaryImage.create(new Size(currentImage.cols(), currentImage.rows()), CvType.CV_8UC1);
-			binaryImage.setTo(new Scalar(0));
-			String text = "";
-			
-			capture.read(capturedImage);
 			while (true){  
 				capture.read(currentImage);  
 				if( !currentImage.empty() ){
-					capture.read(frame2);  
-					
-					//foregroundImage = videoProcessor.process(currentImage);
-					foregroundImage = videoProcessor.process(currentImage, frame2);
-					
-					//Imgproc.cvtColor(foregroundImage, binaryImage,Imgproc.COLOR_BGR2GRAY);
-					//Imgproc.threshold(foregroundImage, binaryImage, imageThreshold, 255.0, Imgproc.THRESH_BINARY_INV);
-					
-					Mat structuringElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(limiar, limiar));
-				    Imgproc.morphologyEx(foregroundImage, binaryImage, Imgproc.MORPH_OPEN, structuringElement);
-				    Imgproc.morphologyEx(binaryImage, binaryImage, Imgproc.MORPH_CLOSE, structuringElement);
-					
-					
-					
-					if (framecount % 20 ==0){
-						capturedImage = currentImage.clone();
-					//	Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
-					//	binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
-						
-						VisionApi visionApi = new VisionApi();
-
-						text = visionApi.sendImage(resizeImage(capturedImage));
-						System.out.println("Text_Detect: " + text);
-						Imgproc.putText(capturedImage, text , new Point(10,680),Core.FONT_HERSHEY_COMPLEX, 3, new Scalar(0,255,255),3);
-						if (visionApi.getRectangle() != null)
-							Imgproc.rectangle(capturedImage, visionApi.getRectangle().tl(), visionApi.getRectangle().br(), new Scalar(255,0,0),5);
-						Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
-						binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
+					if (framecount % 30 ==0){
+						VisionApi visionApi = new VisionApi(resizeImage(currentImage.clone()), this);
+						visionApi.start();					
 					}
-					
-					drawContours();
-					
 					// update
 					updateView();
-					
-					 
-					
 					frame.pack();
-					framecount ++;
-					
+					framecount ++;				
 					try {
-						Thread.sleep(1);
+						Thread.sleep(40);
 					} catch (InterruptedException e) {
 					}
 				}  
@@ -210,20 +172,64 @@ public class VagaoApp {
 		
 	}
 	
+	@Override
+	public void setOCRResult(String text, Mat img) {
+		System.out.println("Text_Detect: " + text);
+	//	Imgproc.putText(img, text , new Point(10,680),Core.FONT_HERSHEY_COMPLEX, 3, new Scalar(0,255,255),3);
+	//	Image tempCapturedImage = imageProcessor.toBufferedImage(img);
+	//	foregroundImageView.setIcon(new ImageIcon(tempCapturedImage));
+		
+		
+		
+		text = text.toUpperCase(Locale.ENGLISH);
+		text = text.replaceAll("[^a-zA-Z0-9]+", "");
+		text = text.replaceAll("VALE", "");
+		text = text.replaceAll("VAL", "");
+		
+		
+		Pattern r = Pattern.compile(".*(\\w{3}\\d{7}).*");
+		
+		
+		Matcher m = r.matcher(text);
+		if (m.find( )) {
+			String code = m.group(0);
+			if (!list.contains(code)){
+				list.add(code);
+				textarea.append(text + '\n');
+			}
+		}
+		
+		/*
+		text = text.toLowerCase().replaceAll("\n", "");
+	    text = text.toLowerCase().replaceAll("VALE", "");
+	    text = text.toLowerCase().replaceAll("M", "");
+	    text = text.toLowerCase().replaceAll("m", "");
+	    text = text.toLowerCase().replaceAll("jp", "");
+	    text = text.toLowerCase().replaceAll("#", "");
+	    
+	    if (text.contains("GDE"))
+	    	text = text.substring(text.indexOf("GDE"), text.length());
+		
+		
+		
+		String code = text.replaceAll(" ", "");
+		if (code.length() == 4 && !list.contains(code)){
+			list.add(code);
+			textarea.append(text + '\n');
+		}
+		*/
+		
+		
+		
+	}
 	
 
 
 	protected void drawContours() {
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
 		
-		final Mat contourMat = new Mat(binaryImage.rows(), binaryImage.cols(), binaryImage.type());
-		binaryImage.copyTo(contourMat);
-		
-		
-		//Mat contourMat = binaryImage.clone();
-		
-		
-		int thickness = (fillFlag.equals(onFillString))?-1:2;
+		final Mat contourMat = binaryImage.clone();
+	
 		
 		Imgproc.findContours(contourMat, contours, new Mat(), Imgproc.CHAIN_APPROX_NONE,Imgproc.CHAIN_APPROX_SIMPLE);
 		System.out.println("Number of found contours: "+contours.size());
@@ -255,19 +261,14 @@ public class VagaoApp {
 	}
 	
 	private void updateView(){
-		Image tempCurrent = imageProcessor.toBufferedImage(resizeImage(currentImage));
-		Image tempForeground = imageProcessor.toBufferedImage(resizeImage(foregroundImage));
-//		Image tempCapturedImage = imageProcessor.toBufferedImage(resizeImage(capturedImage));
+		Image tempCurrent = imageProcessor.toBufferedImage(currentImage);
 		currentImageView.setIcon(new ImageIcon(tempCurrent));
-		foregroundImageView.setIcon(new ImageIcon(tempForeground));
-///		binaryImageView.setIcon(new ImageIcon(tempCapturedImage));
-		
 		frame.pack();
 	}
 	
 	private Mat resizeImage(Mat src){
-		resizedImage = new Mat();
-		Size sz = new Size(600,480);
+		Mat resizedImage = new Mat();
+		Size sz = new Size(640,360);
 		Imgproc.resize( src, resizedImage, sz );
 		
 		return resizedImage; 
@@ -521,10 +522,10 @@ private void setupUpperSlider(JFrame frame) {
 		
 		c.gridx = 1;
 		
-		frame.add(new JLabel("Background", JLabel.CENTER),c);
+		frame.add(new JLabel( "  ", JLabel.CENTER),c);
 		
 		c.gridx = 2;
-		frame.add(new JLabel("Binary", JLabel.CENTER),c);
+		frame.add(new JLabel("Result", JLabel.CENTER),c);
 		
 		c.gridy = 6;
 		c.gridx = 0;
@@ -538,7 +539,14 @@ private void setupUpperSlider(JFrame frame) {
 		
 		c.gridx = 2;
 		
-		frame.add(binaryImageView,c);
+		Font font = new Font("Verdana", Font.PLAIN, 24);
+		textarea.setFont(font);
+		textarea.setForeground(Color.BLACK);
+		
+		 JScrollPane scroll = new JScrollPane (textarea, 
+				   JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+		
+		frame.add(scroll,c);
 	}
 
 	private void setSystemLookAndFeel() {
@@ -576,5 +584,7 @@ private void setupUpperSlider(JFrame frame) {
 
 
 	}
+
+
 
 }
